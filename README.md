@@ -17,7 +17,6 @@ ML-Final-Project/
 │   └── pipeline.py       # Orchestrate full workflow
 ├── notebooks/
 │   ├── El_parsero.ipynb         # Data exploration
-│   └── model_analysis.ipynb     # Results visualization
 ├── config.py             # Hyperparameters, paths, constants
 ├── model_evaluation.ipynb              # Entry point
 └── requirements.txt

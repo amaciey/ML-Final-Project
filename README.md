@@ -19,7 +19,7 @@ ML-Final-Project/
 │   ├── El_parsero.ipynb         # Data exploration
 │   └── model_analysis.ipynb     # Results visualization
 ├── config.py             # Hyperparameters, paths, constants
-├── main.py              # Entry point
+├── model_evaluation.ipynb              # Entry point
 └── requirements.txt
 ```
 

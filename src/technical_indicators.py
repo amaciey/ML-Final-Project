@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import stockstats as ss
 
-full_price_df = pd.read_csv('final_dataset.csv')
+full_price_df = pd.read_csv('./data/processed/final_dataset.csv')
 
 price_columns = ['HVO_class_II_fob_ARA', 'Ucome_fob_ARA', 'UCO_exw_ARA', 'EU_BRENT_CRUDE', 'LSMGO_Rotterdam']
 
@@ -60,4 +60,4 @@ indicator_cols = [col for col in full_price_df.columns if any(ind in col for ind
 print(f"\nIndicators added ({len(indicator_cols)}) total columns:")
 
 print(f"\nDataFrame shape: {full_price_df.shape}")
-full_price_df.to_csv('final_dataset_with_indicators.csv')
+full_price_df.to_csv('./data/processed/final_dataset_with_indicators.csv')

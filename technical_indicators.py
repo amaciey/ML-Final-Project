@@ -60,5 +60,4 @@ indicator_cols = [col for col in full_price_df.columns if any(ind in col for ind
 print(f"\nIndicators added ({len(indicator_cols)}) total columns:")
 
 print(f"\nDataFrame shape: {full_price_df.shape}")
-print(f"\nFirst few rows:")
-print(full_price_df.head())
+full_price_df.to_csv('final_dataset_with_indicators.csv')

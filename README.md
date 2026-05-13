@@ -1,3 +1,39 @@
+## System Architecture
+
+```
+ML-Final-Project/
+├── data/
+│   ├── raw/              # Original datasets (final_dataset.csv, etc.)
+│   └── processed/        # Data after feature engineering
+├── src/
+│   ├── data_loader.py    # Load and validate raw data
+│   ├── feature_engine.py # Technical indicators calculation
+│   ├── feature_select.py # Random Forest feature selection
+│   ├── models/           # Model implementations
+│   │   ├── __init__.py
+│   │   ├── linear_models.py     # Linear Regression, SVM
+│   │   ├── neural_models.py     # LSTM
+│   │   └── evaluation.py        # Metrics, cross-validation
+│   └── pipeline.py       # Orchestrate full workflow
+├── notebooks/
+│   ├── El_parsero.ipynb         # Data exploration
+│   └── model_analysis.ipynb     # Results visualization
+├── config.py             # Hyperparameters, paths, constants
+├── main.py              # Entry point
+└── requirements.txt
+```
+
+**Module Breakdown:**
+- **data_loader.py** — Read CSV, validate schema, handle missing values
+- **feature_engine.py** — Calculate 22 technical indicators (stockstats-based)
+- **feature_select.py** — Random Forest feature ranking & selection
+- **linear_models.py** — Linear Regression and SVM model implementations
+- **neural_models.py** — LSTM model implementation
+- **evaluation.py** — Shared metrics, cross-validation, performance comparison
+- **pipeline.py** — Orchestrate workflow: load → engineer → select → train → evaluate
+- **main.py** — CLI entry point that calls pipeline
+- **config.py** — Centralized hyperparameters, file paths, constants
+
 ## Data Collection
 
 ## Technical Indicators

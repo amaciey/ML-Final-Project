@@ -1,7 +1,9 @@
+## Data Collection
+
 ## Technical Indicators
 Created using the Stockstats Python library
 
-We cannot re-create all 42 indicators in the Hybrid-LSTM report because we don't have Volume, Open, High, and Low data.
+We cannot re-create all 42 indicators in the Hybrid-LSTM report because we don't have Volume, Open, High, and Low data. The following are a subset of 22 indicators that we are capable of re-creating using our data.
 
 ### Trend-Following
 Aim to identify the direction of price trends
@@ -35,3 +37,11 @@ Aim to assess the degree of price movements
 - DMA: Difference between moving averages of different periods
 - MAD: Average absolute difference from the mean to measure volatility
 - BIAS: Percentage difference between current closing price and moving average
+
+## Feature Selection with Random Forest
+
+## Data Split
+
+### Sliding 30-day Windows
+
+## Hyperparameter Tuning

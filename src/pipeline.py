@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import tensorflow as tf
 
 # Import modules from this project
-from technical_indicators import technical_indicator_creation
+from src.feature_engine import technical_indicator_creation
     # Import models
 
 # Load raw data from sources (./data/raw/)
@@ -102,6 +102,8 @@ def train_test_split(windowed_data, window_size, lookahead_value):
 
 
 # Implement walk-forward cross-validation
+
+# Implement hyperparameter tuning
 
 # Train LSTM model
 

@@ -45,17 +45,25 @@ def data_scaler(scaler_type):
 
     else:
         return data_standardized
-    
-
-test_data = data_scaler('MinMax')
-print(test_data.head())
-
 
 # Apply feature selection (Random Forest ranking)
 
 # Create windowed tf.data.Dataset with different lookahead values
 # Lookahead options: 1 day, 10 days, 20 days
 # Handle temporal integrity (no data leakage between train/val/test)
+def window_creator(dataset, window_size, lookahead_value, batch_size):
+    windowed_data = tf.keras.utils.timeseries_dataset_from_array(
+        dataset.to_numpy(),
+        targets = dataset.loc[(window_size+lookahead_value-1):, 'Ucome_fob_ARA'],
+        sequence_length = window_size,
+        batch_size = batch_size,
+        shuffle=True,
+        seed=42
+        )
+    
+    return windowed_data
+
+test_windowed_data = window_creator(data_scaler('MinMax'), window_size=30, lookahead_value=10, batch_size=2)
 
 # Split windowed data into train/validation/test sets
 # Maintain chronological order (time series best practice)

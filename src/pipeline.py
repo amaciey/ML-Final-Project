@@ -1,4 +1,11 @@
-# Import models
+# Import other libraries
+import pandas as pd
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+import tensorflow as tf
+
+# Import modules from this project
+from technical_indicators import technical_indicator_creation
+    # Import models
 
 # Load raw data from sources (./data/raw/)
 
@@ -7,7 +14,42 @@
 # Calculate or integrate technical indicators
 # (Reference technical_indicators.py output)
 
-# Normalize features using StandardScaler
+# Data Scaling and Normalization
+def data_scaler(scaler_type):
+    """
+    Function to scale cleaned data prior to any 
+    """
+
+    data = technical_indicator_creation()
+
+    # Normalize features using StandardScaler
+    standard_scaler = StandardScaler()
+    minmax_scaler = MinMaxScaler()
+
+    # Apply StandardScaler to the dataset
+    data_standardized = pd.DataFrame(
+        standard_scaler.fit_transform(data),
+        columns=data.columns,
+        index=data.index
+    )
+
+    # Apply MinMaxScaler to the dataset
+    data_minmax = pd.DataFrame(
+        minmax_scaler.fit_transform(data),
+        columns=data.columns,
+        index=data.index
+    )
+
+    if scaler_type == 'MinMax':
+        return data_minmax
+
+    else:
+        return data_standardized
+    
+
+test_data = data_scaler('MinMax')
+print(test_data.head())
+
 
 # Apply feature selection (Random Forest ranking)
 

@@ -64,8 +64,13 @@ def technical_indicator_creation():
     #full_price_df.to_csv('./data/processed/final_dataset_with_indicators.csv')
     
     # Final Data Cleaning
+    # Creating datetime column and sorting chronologically. Data must not be shuffled or rearranged after this
     full_price_df['Date'] = pd.to_datetime(full_price_df['Date'])
     full_price_df.sort_values('Date', inplace=True, ascending=True)
+    
+    # Dropping "Date" column because it can't be used in prediction
     full_price_df.drop(columns=['Date'], inplace=True)
+    # Dropping early N/A values caused by moving averages calculation
+    full_price_df.dropna(inplace=True)
     
     return full_price_df

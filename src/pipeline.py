@@ -4,8 +4,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import tensorflow as tf
 
 # Import modules from this project
-from feature_engine import technical_indicator_creation
-from models.neural_models import HybridGRU_LSTM
+from src.feature_engine import technical_indicator_creation
+from src.models.neural_models import HybridGRU_LSTM
 
 # Load raw data from sources (./data/raw/)
 

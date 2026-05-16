@@ -1,14 +1,13 @@
 """
 linear_models.py
 
-Linear Regression, Ridge, Lasso and Support Vector Regression scaffold
+Linear Regression, Ridge, Lasso and Elastic Net scaffold
 for the ML Final Project.
 
 Main design choices:
 - Time-based splitting, no random shuffle.
 - Median imputation inside scikit-learn pipelines.
-- Feature scaling with StandardScaler for Linear/Ridge/Lasso/SVR.
-- Optional target scaling for SVR through TransformedTargetRegressor.
+- Feature scaling with StandardScaler for all linear models.
 - Naive baseline included for comparison.
 """
 
@@ -20,13 +19,11 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from sklearn.compose import TransformedTargetRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.linear_model import ElasticNet, Lasso, LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVR
 
 
 # ---------------------------------------------------------------------
@@ -34,19 +31,6 @@ from sklearn.svm import SVR
 # ---------------------------------------------------------------------
 
 DEFAULT_TARGET_COL = "Ucome_fob_ARA"
-
-DEFAULT_FEATURE_COLS = [
-    "HVO_class_II_fob_ARA",
-    "Ucome_fob_ARA",
-    "UCO_exw_ARA",
-    "UCO_fob_ARA",
-    "UCO_cif_ARA",
-    "EU_BRENT_CRUDE",
-    "LSMGO_Rotterdam",
-    "EUR_USD_rate",
-    "FED_Funds_Rate",
-    "FuelEU_MGO_penalty",
-]
 
 DEFAULT_LAGS = [1, 7, 30]
 DEFAULT_ROLLING_WINDOWS = [7, 30]
@@ -112,6 +96,21 @@ def load_dataset(
 # ---------------------------------------------------------------------
 # 3. Preprocessing and feature engineering
 # ---------------------------------------------------------------------
+def infer_feature_columns(
+    df: pd.DataFrame,
+    target_col: str,
+    date_col: str = "Date",
+) -> List[str]:
+    """
+    Infer usable numeric features from the dataset.
+
+    Excludes target and date columns.
+    """
+
+    excluded = {target_col, date_col}
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    return [col for col in numeric_cols if col not in excluded]
+
 
 def prepare_model_dataset(
     df: pd.DataFrame,
@@ -130,16 +129,16 @@ def prepare_model_dataset(
     Target modes
     ------------
     level:
-        Predict future price level.
-        Example: target = HVO[t + horizon]
+        Predict future UCOME price level.
+        Example: target = UCOME[t + horizon]
 
     change:
-        Predict future price change.
-        Example: target = HVO[t + horizon] - HVO[t]
+        Predict future UCOME price change.
+        Example: target = UCOME[t + horizon] - UCOME[t]
 
     return:
-        Predict future percentage return.
-        Example: target = (HVO[t + horizon] - HVO[t]) / HVO[t]
+        Predict future UCOME percentage return.
+        Example: target = (UCOME[t + horizon] - UCOME[t]) / UCOME[t]
 
     Parameters
     ----------
@@ -174,9 +173,6 @@ def prepare_model_dataset(
     if target_mode not in ["level", "change", "return"]:
         raise ValueError("target_mode must be one of: 'level', 'change', 'return'.")
 
-    if feature_cols is None:
-        feature_cols = DEFAULT_FEATURE_COLS
-
     if lags is None:
         lags = DEFAULT_LAGS
 
@@ -194,8 +190,12 @@ def prepare_model_dataset(
             f"Available columns: {list(df.columns)}"
         )
 
-    # Keep only available feature columns.
-    feature_cols = [col for col in feature_cols if col in df.columns]
+    # Infer usable numeric features if not explicitly provided.
+    if feature_cols is None:
+        feature_cols = infer_feature_columns(df=df, target_col=target_col, date_col=date_col)
+    else:
+        feature_cols = [col for col in feature_cols if col in df.columns]
+        feature_cols = [col for col in feature_cols if pd.api.types.is_numeric_dtype(df[col])]
 
     if len(feature_cols) == 0:
         raise ValueError("No valid feature columns found in the dataset.")
@@ -250,18 +250,13 @@ def prepare_model_dataset(
                 model_df[col].rolling(window).std()
             )
 
-    # Spread features.
+    # Optional spread feature when both columns are available.
     if (
         "HVO_class_II_fob_ARA" in model_df.columns
         and "LSMGO_Rotterdam" in model_df.columns
     ):
         model_df["HVO_minus_LSMGO"] = (
             model_df["HVO_class_II_fob_ARA"] - model_df["LSMGO_Rotterdam"]
-        )
-
-    if "Ucome_fob_ARA" in model_df.columns and "UCO_fob_ARA" in model_df.columns:
-        model_df["UCOME_minus_UCO"] = (
-            model_df["Ucome_fob_ARA"] - model_df["UCO_fob_ARA"]
         )
 
     # Drop rows where the target is missing.
@@ -360,7 +355,7 @@ def build_linear_regression() -> Pipeline:
     """
     Plain Linear Regression with imputation and feature scaling.
 
-    Scaling is included for consistency with Ridge, Lasso and SVR,
+    Scaling is included for consistency with Ridge, Lasso and Elastic Net,
     and to make coefficients more comparable.
     """
 
@@ -401,36 +396,22 @@ def build_lasso(alpha: float = 0.01, max_iter: int = 10_000) -> Pipeline:
     ])
 
 
-def build_svr(
-    kernel: str = "rbf",
-    C: float = 10.0,
-    epsilon: float = 0.1,
-    gamma: str = "scale",
-    scale_y: bool = True,
-):
+def build_elastic_net(
+    alpha: float = 0.01,
+    l1_ratio: float = 0.5,
+    max_iter: int = 10_000,
+) -> Pipeline:
     """
-    Support Vector Regression.
+    Elastic Net Regression.
 
-    SVR is sensitive to feature scale, so X is standardized.
-    The target y can optionally be standardized using TransformedTargetRegressor.
-
-    scale_y=True is useful because HVO prices can be much larger than variables
-    such as Brent, EUR/USD or interest rates.
+    Combines L1 and L2 regularization and is scale-sensitive.
     """
 
-    base_pipeline = Pipeline([
+    return Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler()),
-        ("model", SVR(kernel=kernel, C=C, epsilon=epsilon, gamma=gamma)),
+        ("model", ElasticNet(alpha=alpha, l1_ratio=l1_ratio, max_iter=max_iter)),
     ])
-
-    if scale_y:
-        return TransformedTargetRegressor(
-            regressor=base_pipeline,
-            transformer=StandardScaler(),
-        )
-
-    return base_pipeline
 
 
 # ---------------------------------------------------------------------
@@ -463,8 +444,7 @@ def evaluate_predictions(
     y_pred = np.asarray(y_pred).flatten()
 
     mae = mean_absolute_error(y_true, y_pred)
-    mse = mean_squared_error(y_true, y_pred)
-    rmse = mse ** 0.5
+    rmse = mean_squared_error(y_true, y_pred) ** 0.5
     r2 = r2_score(y_true, y_pred)
 
     if target_mode == "level" and current_price is not None:
@@ -484,7 +464,6 @@ def evaluate_predictions(
     return {
         "model": model_name,
         "MAE": mae,
-        "MSE": mse,
         "RMSE": rmse,
         "R2": r2,
         "Directional Accuracy": directional_accuracy,
@@ -533,7 +512,7 @@ def run_linear_models_experiment(
     val_size: float = 0.15,
 ) -> Tuple[pd.DataFrame, Dict[str, object]]:
     """
-    End-to-end experiment for Linear Regression, Ridge, Lasso and SVR.
+    End-to-end experiment for Linear Regression, Ridge, Lasso and Elastic Net.
 
     Requires a real dataset path. No mock dataset is created.
     """
@@ -567,7 +546,7 @@ def run_linear_models_experiment(
         "Linear Regression": build_linear_regression(),
         "Ridge": build_ridge(alpha=1.0),
         "Lasso": build_lasso(alpha=0.01),
-        "SVR RBF": build_svr(kernel="rbf", C=10.0, epsilon=0.1, scale_y=True),
+        "Elastic Net": build_elastic_net(alpha=0.01, l1_ratio=0.5),
     }
 
     validation_results = []

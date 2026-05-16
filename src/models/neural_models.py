@@ -36,7 +36,7 @@ class HybridGRU_LSTM:
             metrics=['mae']
         )
 
-    def train(self, X_train):
+    def train(self, X_train, val_data=None, epochs=10, callbacks=None):
         """
         Train the model on windowed time series data.
         
@@ -46,7 +46,12 @@ class HybridGRU_LSTM:
         Returns:
             History object containing training metrics
         """
-        trained_model = self.model.fit(X_train)
+        trained_model = self.model.fit(X_train,
+                                       validation_data = val_data,
+                                       epochs = epochs,
+                                       callbacks = callbacks,
+                                       verbose = 0
+                                       )
         return trained_model
     
     def evaluate(self, X_test):

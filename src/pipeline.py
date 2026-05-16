@@ -1,7 +1,13 @@
 # Import other libraries
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.ensemble import RandomForestRegressor
 import tensorflow as tf
+from skopt import forest_minimize
+from skopt.space import Real, Integer
+from skopt.utils import use_named_args
+from sklearn.model_selection import TimeSeriesSplit
+import numpy as np
 
 # Import modules from this project
 from src.feature_engine import technical_indicator_creation
@@ -47,6 +53,21 @@ def data_scaler(scaler_type):
         return data_standardized
 
 # Apply feature selection (Random Forest ranking)
+def select_features_rf(df, target_col='Ucome_fob_ARA', top_n = 20):
+    #Fit
+    X = df.drop(columns=[target_col])
+    y = df[target_col]
+    
+    rf = RandomForestRegressor(n_estimators=11,random_state=42, n_jobs=-1)
+    rf.fit(X,y)
+    
+    importances = pd.Series(rf.feature_importances_, index = X.columns)
+    sorted_importances = importances.sort_values(ascending=False)
+    top_features = sorted_importances.head(top_n).index.tolist()
+    print(sorted_importances.head(10))
+    selected_data = df[top_features + [target_col]]
+    
+    return selected_data, top_features
 
 # Split windowed data into train/validation/test sets
 # Maintain chronological order (time series best practice)
@@ -107,7 +128,96 @@ def window_creator(dataset, window_size, lookahead_value, batch_size):
 # Implement walk-forward cross-validation
 
 # Implement hyperparameter tuning
+def optimize_hyperparameters(train_df, lookahead_value, batch_size, n_features):
+    print("\n--- Starting Hyperparameter Optimization ---")
+    
+    # 1. Define the Search Space
+    space = [
+        Integer(16, 128, name='gru_units'),
+        Integer(16, 128, name='lstm_units'),
+        Real(0.1, 0.5, name='dropout'),
+        Real(1e-4, 1e-2, prior='log-uniform', name='learning_rate'),
+        Integer(10, 60, name='window_size')
+    ]
+    
+    # 2. Define the Objective Function
+    @use_named_args(space)
+    def objective(gru_units, lstm_units, dropout, learning_rate,window_size):
+        window_size = int(window_size)
+        # Walk-Forward Cross Validation
+        tscv = TimeSeriesSplit(n_splits=3)
+        fold_val_losses = []
+        
+        # Split the base DataFrame chronologically
+        for train_idx, val_idx in tscv.split(train_df):
+            
+            # Extract train/val splits
+            fold_train_df = train_df.iloc[train_idx].reset_index(drop=True)
+            fold_val_df = train_df.iloc[val_idx].reset_index(drop=True)
+            
+            # Convert DataFrames to Windowed tf.data.Datasets
+            fold_train_data = window_creator(fold_train_df, window_size, lookahead_value, batch_size)
+            fold_val_data = window_creator(fold_val_df, window_size, lookahead_value, batch_size)
+            
+            # Skip if the fold is too small to create windows
+            if len(fold_train_data) == 0 or len(fold_val_data) == 0:
+                continue
 
+            # Instantiate Model with current hyperparameters
+            model = HybridGRU_LSTM(
+                gru_units=int(gru_units),
+                lstm_units=int(lstm_units),
+                dropout=float(dropout),
+                learning_rate=float(learning_rate),
+                window_size=window_size,
+                n_features=n_features
+            )
+            
+            # Early stopping to prevent wasting time on bad configs
+            early_stop = tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss', patience=3, restore_best_weights=True
+            )
+            
+            # Train model on this fold
+            history = model.train(
+                fold_train_data, 
+                val_data=fold_val_data, 
+                epochs=15, 
+                callbacks=[early_stop]
+            )
+            
+            # Get the best validation loss for this fold
+            best_val_loss = min(history.history['val_loss'])
+            fold_val_losses.append(best_val_loss)
+            
+        # The objective is the average validation loss across all time-folds
+        mean_val_loss = np.mean(fold_val_losses)
+        print(f"Tested: GRU={gru_units}, LSTM={lstm_units}, Drop={dropout:.2f}, LR={learning_rate:.4f}, Window={window_size} --> Mean Val Loss: {mean_val_loss:.6f}")
+        
+        return mean_val_loss
+
+    # 3. Run the Tree-Based Optimization
+    res = forest_minimize(
+        func=objective,
+        dimensions=space,
+        base_estimator="RF",  # Uses a standard Random Forest Regressor
+        n_calls=25,
+        n_initial_points=5,
+        random_state=42
+    )
+    
+    # 4. Extract and return the best parameters
+    best_params = {
+        'gru_units': res.x[0],
+        'lstm_units': res.x[1],
+        'dropout': res.x[2],
+        'learning_rate': res.x[3],
+        'window_size': res.x[4]
+    }
+    
+    print("\nOptimal Hyperparameters Found:")
+    print(best_params)
+    return best_params
 # Train LSTM model
 
 # Train GRU model
@@ -141,33 +251,44 @@ if __name__ == "__main__":
     print(f"  Min: {target_col.min():.6f}, Max: {target_col.max():.6f}")
     print(f"  Mean: {target_col.mean():.6f}, Std: {target_col.std():.6f}")
     
-    # Step 2: Split into train/test maintaining chronological order
+    # Step 2: Select Features
+    print("Selecting Features using Random Forest...")
+    scaled_data, selected_cols = select_features_rf(scaled_data, top_n=40)
+    n_features = scaled_data.shape[1]  # Number of features (price + indicators)
+
+    # Step 3: Split into train/test maintaining chronological order
     print("Splitting into train/test sets...")
     train_data, test_data = train_test_split(scaled_data)
 
     print("Training Data: " + str(train_data))
     print("Testing Data: " + str(test_data))
     
-    # Step 3: Create windowed dataset (targets automatically extracted)
+    # Step 4: Create windowed dataset (targets automatically extracted)
     print("\nCreating windowed dataset...")
     window_size = 30
     lookahead_value = 10
     batch_size = 32
-    n_features = scaled_data.shape[1]  # Number of features (price + indicators)
-    
-    windowed_train = window_creator(train_data, window_size, lookahead_value, batch_size)
 
-    windowed_test = window_creator(test_data, window_size, lookahead_value, batch_size)
+    best_params = optimize_hyperparameters(
+        train_df=train_data, 
+        lookahead_value=lookahead_value, 
+        batch_size=batch_size, 
+        n_features=n_features
+    )
+    
+    windowed_train = window_creator(train_data, best_params['window_size'], lookahead_value, batch_size)
+
+    windowed_test = window_creator(test_data, best_params['window_size'], lookahead_value, batch_size)
     
     # Step 4: Instantiate the model
     print("Building HybridGRU_LSTM model...")
     model = HybridGRU_LSTM(
-        gru_units=50,
-        lstm_units=50,
-        dropout=0.2,
-        learning_rate=0.001,
-        window_size=window_size,
-        n_features=n_features
+    gru_units=int(best_params['gru_units']),
+    lstm_units=int(best_params['lstm_units']),
+    dropout=float(best_params['dropout']),
+    learning_rate=float(best_params['learning_rate']),
+    window_size=best_params['window_size'],
+    n_features=n_features
     )
     
     # Step 5: Train the model

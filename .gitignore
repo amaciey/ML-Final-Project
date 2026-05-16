@@ -1,1 +1,7 @@
 .vscode/settings.json
+src/__pycache__/technical_indicators.cpython-313.pyc
+src/__pycache__/feature_engine.cpython-313.pyc
+src/models/__pycache__/__init__.cpython-313.pyc
+src/models/__pycache__/neural_models.cpython-313.pyc
+src/__pycache__/__init__.cpython-313.pyc
+src/__pycache__/pipeline.cpython-313.pyc

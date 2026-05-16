@@ -17,7 +17,6 @@ ML-Final-Project/
 │   └── pipeline.py       # Orchestrate full workflow
 ├── notebooks/
 │   ├── El_parsero.ipynb         # Data exploration
-│   └── model_analysis.ipynb     # Results visualization
 ├── config.py             # Hyperparameters, paths, constants
 ├── model_evaluation.ipynb              # Entry point
 └── requirements.txt
@@ -31,7 +30,7 @@ ML-Final-Project/
 - **neural_models.py** — LSTM model implementation
 - **evaluation.py** — Shared metrics, cross-validation, performance comparison
 - **pipeline.py** — Orchestrate workflow: load → engineer → select → train → evaluate
-- **main.py** — CLI entry point that calls pipeline
+- **model_evaluation.ipynb** — Single entry point that calls pipeline and creates visualizations comparing model performance
 - **config.py** — Centralized hyperparameters, file paths, constants
 
 ## Data Collection

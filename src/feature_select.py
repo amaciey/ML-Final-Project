@@ -10,7 +10,6 @@ def feature_selection(data):
     df = data.loc[:,~data.columns.isin(['Unnamed: 0'])]
     exclude = "Ucome"
     df = df.loc[:, ~df.columns.str.contains(exclude, case=False, na=False)]
-    df = df.drop(columns=['Date'])
     df = df.drop(columns=['Date'], errors='ignore')
     #remove row with initial Nan values from indicators
     df = df.iloc[1:,:]

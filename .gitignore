@@ -7,3 +7,18 @@ src/__pycache__/__init__.cpython-313.pyc
 src/__pycache__/pipeline.cpython-313.pyc
 src/models/feature_selection_sndbx_brkpnt.ipynb
 src/models/feature_selection_sndbx.ipynb
+# Local virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter local artifacts
+.ipynb_checkpoints/
+
+# Optional local environment files
+.env
+.env.*

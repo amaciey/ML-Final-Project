@@ -4,9 +4,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.feature_selection import SelectFromModel
 import datetime
 
-def feature_selection():
+def feature_selection(data):
     # Load dataset with indicators
-    data = pd.read_csv('./data/processed/final_dataset_with_indicators.csv')
+    # data = pd.read_csv('./data/processed/final_dataset_with_indicators.csv')
     df = data.loc[:,~data.columns.isin(['Unnamed: 0'])]
     exclude = "Ucome"
     df = df.loc[:, ~df.columns.str.contains(exclude, case=False, na=False)]
@@ -26,4 +26,4 @@ def feature_selection():
     # This uses a threshold (e.g., 'median' or a specific number)
     selector = SelectFromModel(rf, threshold='median', prefit=True)
     X_important = selector.transform(X)
-    return X_important, importances
+    return X_important

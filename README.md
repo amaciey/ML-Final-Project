@@ -35,6 +35,7 @@ ML-Final-Project/
 
 ## Data Collection
 
+
 ## Technical Indicators
 Created using the Stockstats Python library
 
@@ -74,6 +75,8 @@ Aim to assess the degree of price movements
 - BIAS: Percentage difference between current closing price and moving average
 
 ## Feature Selection with Random Forest
+Aim to select the most relevant feastures for variable prediction
+- Feature Selection Threshold: median to choose only the top 50% features in terms of importance
 
 ## Data Split
 

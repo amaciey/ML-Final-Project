@@ -11,7 +11,8 @@ import numpy as np
 
 # Import modules from this project
 from src.feature_engine import technical_indicator_creation
-from src.models.neural_models import HybridGRU_LSTM
+from src.models.neural_models import *
+from src.feature_select import feature_selection
 
 # Load raw data from sources (./data/raw/)
 
@@ -52,22 +53,7 @@ def data_scaler(scaler_type):
     else:
         return data_standardized
 
-# Apply feature selection (Random Forest ranking)
-def select_features_rf(df, target_col='Ucome_fob_ARA', top_n = 20):
-    #Fit
-    X = df.drop(columns=[target_col])
-    y = df[target_col]
-    
-    rf = RandomForestRegressor(n_estimators=11,random_state=42, n_jobs=-1)
-    rf.fit(X,y)
-    
-    importances = pd.Series(rf.feature_importances_, index = X.columns)
-    sorted_importances = importances.sort_values(ascending=False)
-    top_features = sorted_importances.head(top_n).index.tolist()
-    print(sorted_importances.head(10))
-    selected_data = df[top_features + [target_col]]
-    
-    return selected_data, top_features
+
 
 # Split windowed data into train/validation/test sets
 # Maintain chronological order (time series best practice)
@@ -128,22 +114,28 @@ def window_creator(dataset, window_size, lookahead_value, batch_size):
 # Implement walk-forward cross-validation
 
 # Implement hyperparameter tuning
-def optimize_hyperparameters(train_df, lookahead_value, batch_size, n_features):
+def optimize_hyperparameters(train_df, model_type, window_size, lookahead_value, batch_size, n_features):
     print("\n--- Starting Hyperparameter Optimization ---")
-    
+    print(f"Model Type: {model_type}")
     # 1. Define the Search Space
-    space = [
-        Integer(16, 128, name='gru_units'),
-        Integer(16, 128, name='lstm_units'),
+    base_space = [
         Real(0.1, 0.5, name='dropout'),
-        Real(1e-4, 1e-2, prior='log-uniform', name='learning_rate'),
-        Integer(10, 60, name='window_size')
+        Real(1e-4, 1e-2, prior='log-uniform', name='learning_rate')
     ]
+
+    if model_type == 'lstm':
+        space = [Integer(20, 100, name='lstm_units')]+base_space
+    elif model_type == 'gru':
+        space = [Integer(20, 100, name='gru_units')]+base_space
+    elif model_type == 'hybrid':
+        space = [Integer(20, 100, name='gru_units'), Integer(20, 100, name='lstm_units')]+base_space
+    else:
+        raise ValueError("Invalid model_type. Choose from 'lstm', 'gru', or 'hybrid'.")
+
     
     # 2. Define the Objective Function
     @use_named_args(space)
-    def objective(gru_units, lstm_units, dropout, learning_rate,window_size):
-        window_size = int(window_size)
+    def objective(gru_units = None, lstm_units = None, dropout = None, learning_rate = None):
         # Walk-Forward Cross Validation
         tscv = TimeSeriesSplit(n_splits=3)
         fold_val_losses = []
@@ -164,14 +156,31 @@ def optimize_hyperparameters(train_df, lookahead_value, batch_size, n_features):
                 continue
 
             # Instantiate Model with current hyperparameters
-            model = HybridGRU_LSTM(
-                gru_units=int(gru_units),
-                lstm_units=int(lstm_units),
-                dropout=float(dropout),
-                learning_rate=float(learning_rate),
-                window_size=window_size,
-                n_features=n_features
-            )
+            if model_type == 'lstm':
+                model = LSTMModel(
+                    lstm_units=int(lstm_units),
+                    dropout=float(dropout),
+                    learning_rate=float(learning_rate),
+                    window_size=window_size,
+                    n_features=n_features
+                )
+            elif model_type == 'gru':
+                model = GRUModel(
+                    gru_units=int(gru_units),
+                    dropout=float(dropout),
+                    learning_rate=float(learning_rate),
+                    window_size=window_size,
+                    n_features=n_features
+                )
+            elif model_type == 'hybrid':
+                model = HybridGRU_LSTM(
+                    gru_units=int(gru_units),
+                    lstm_units=int(lstm_units),
+                    dropout=float(dropout),
+                    learning_rate=float(learning_rate),
+                    window_size=window_size,
+                    n_features=n_features
+                )
             
             # Early stopping to prevent wasting time on bad configs
             early_stop = tf.keras.callbacks.EarlyStopping(
@@ -207,13 +216,9 @@ def optimize_hyperparameters(train_df, lookahead_value, batch_size, n_features):
     )
     
     # 4. Extract and return the best parameters
-    best_params = {
-        'gru_units': res.x[0],
-        'lstm_units': res.x[1],
-        'dropout': res.x[2],
-        'learning_rate': res.x[3],
-        'window_size': res.x[4]
-    }
+    best_params = {dim.name: res.x[i] for i, dim in enumerate(space)}
+
+    best_params['window_size'] = window_size
     
     print("\nOptimal Hyperparameters Found:")
     print(best_params)

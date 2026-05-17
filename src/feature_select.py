@@ -4,13 +4,13 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.feature_selection import SelectFromModel
 import datetime
 
-def feature_selection():
+def feature_selection(data):
     # Load dataset with indicators
-    data = pd.read_csv('./data/processed/final_dataset_with_indicators.csv')
+    # data = pd.read_csv('./data/processed/final_dataset_with_indicators.csv')
     df = data.loc[:,~data.columns.isin(['Unnamed: 0'])]
     exclude = "Ucome"
     df = df.loc[:, ~df.columns.str.contains(exclude, case=False, na=False)]
-    df = df.drop(columns=['Date'])
+    df = df.drop(columns=['Date'], errors='ignore')
     #remove row with initial Nan values from indicators
     df = df.iloc[1:,:]
     # define X and y variables for feature selection
@@ -26,4 +26,9 @@ def feature_selection():
     # This uses a threshold (e.g., 'median' or a specific number)
     selector = SelectFromModel(rf, threshold='median', prefit=True)
     X_important = selector.transform(X)
-    return X_important, importances
+    
+    chosen_features = X.columns[selector.get_support()]
+    X_important_df = pd.DataFrame(X_important, columns=chosen_features, index=X.index)
+    X_important_df['Ucome_fob_ARA'] = y.values
+
+    return X_important_df.reset_index(drop=True)

@@ -1,7 +1,6 @@
 # Import other libraries
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.ensemble import RandomForestRegressor
 import tensorflow as tf
 from skopt import forest_minimize
 from skopt.space import Real, Integer
@@ -22,43 +21,35 @@ from src.feature_select import feature_selection
 # (Reference technical_indicators.py output)
 
 # Data Scaling and Normalization
-def data_scaler(scaler_type):
+def data_scaler(scaler_type, data=None, fitted_scaler=None, return_scaler=False):
     """
-    Function to scale cleaned data prior to any 
+    Scale data with either StandardScaler or MinMaxScaler.
+
+    If `fitted_scaler` is provided, only transform is applied.
+    If `return_scaler` is True, returns (scaled_df, scaler).
     """
-
-    data = technical_indicator_creation()
-
-    # Normalize features using StandardScaler
-    standard_scaler = StandardScaler()
-    minmax_scaler = MinMaxScaler()
-
-    # Apply StandardScaler to the dataset
-    data_standardized = pd.DataFrame(
-        standard_scaler.fit_transform(data),
-        columns=data.columns,
-        index=data.index
-    )
-
-    # Apply MinMaxScaler to the dataset
-    data_minmax = pd.DataFrame(
-        minmax_scaler.fit_transform(data),
-        columns=data.columns,
-        index=data.index
-    )
+    if data is None:
+        data = technical_indicator_creation()
 
     if scaler_type == 'MinMax':
-        return data_minmax
-
+        scaler = MinMaxScaler() if fitted_scaler is None else fitted_scaler
     else:
-        return data_standardized
+        scaler = StandardScaler() if fitted_scaler is None else fitted_scaler
+
+    if fitted_scaler is None:
+        scaled_values = scaler.fit_transform(data)
+    else:
+        scaled_values = scaler.transform(data)
+
+    scaled_df = pd.DataFrame(scaled_values, columns=data.columns, index=data.index)
+    return (scaled_df, scaler) if return_scaler else scaled_df
 
 
 
 # Split windowed data into train/validation/test sets
 # Maintain chronological order (time series best practice)
 # Handle temporal integrity (no data leakage between train/val/test)
-def train_test_split(dataset):
+def train_test_split(dataset, train_ratio=0.8):
     """
     Split scaled data into train (80%), and test (20%)
     while maintaining chronological order and ensuring no data leakage.
@@ -78,8 +69,8 @@ def train_test_split(dataset):
     # Count total samples in the windowed dataset
     total_samples = len(dataset)
     
-    # Calculate split indices maintaining 80/20 ratio and buffer to avoid data leakage
-    train_size = int(0.8 * total_samples)
+    # Calculate split index while preserving chronological order.
+    train_size = int(train_ratio * total_samples)
     
     # Training data: first 80% of windows (exclusive of buffer windows defined above)
     train_data = dataset.iloc[:train_size,:].reset_index(drop=True)
@@ -88,6 +79,37 @@ def train_test_split(dataset):
     test_data = dataset.iloc[train_size:,:].reset_index(drop=True)
 
     return train_data, test_data
+
+
+def split_scale_feature_select(
+    scaler_type='MinMax',
+    train_ratio=0.8,
+):
+    """
+    Leakage-safe preprocessing:
+    1) split raw data chronologically
+    2) fit scaler on train only and transform train/test
+    3) fit feature selector on train only and transform train/test
+    """
+    raw_data = technical_indicator_creation()
+    train_raw, test_raw = train_test_split(raw_data, train_ratio=train_ratio)
+
+    train_scaled, scaler = data_scaler(
+        scaler_type=scaler_type,
+        data=train_raw,
+        return_scaler=True,
+    )
+    test_scaled = data_scaler(
+        scaler_type=scaler_type,
+        data=test_raw,
+        fitted_scaler=scaler,
+    )
+
+    train_selected, test_selected, selected_cols = feature_selection(
+        train_scaled,
+        test_scaled,
+    )
+    return train_selected, test_selected, selected_cols
 
 # Create windowed tf.data.Dataset with different lookahead values
 # Lookahead options: 1 day, 10 days, 20 days
@@ -246,36 +268,32 @@ if __name__ == "__main__":
     instantiate model, train, and evaluate.
     """
     
-    # Step 1: Load and scale data
-    print("Loading and scaling data...")
-    scaled_data = data_scaler('MinMax')
-    
-    # Check target column stats
-    target_col = scaled_data['Ucome_fob_ARA']
+    # Step 1: Leakage-safe split/scale/feature selection
+    print("Preparing data (split -> scale -> feature selection)...")
+    train_data, test_data, selected_cols = split_scale_feature_select(scaler_type='MinMax')
+
+    # Check target column stats on train split
+    target_col = train_data['Ucome_fob_ARA']
     print(f"\nTarget column (Ucome_fob_ARA) statistics:")
     print(f"  Min: {target_col.min():.6f}, Max: {target_col.max():.6f}")
     print(f"  Mean: {target_col.mean():.6f}, Std: {target_col.std():.6f}")
-    
-    # Step 2: Select Features
-    print("Selecting Features using Random Forest...")
-    scaled_data, selected_cols = select_features_rf(scaled_data, top_n=40)
-    n_features = scaled_data.shape[1]  # Number of features (price + indicators)
 
-    # Step 3: Split into train/test maintaining chronological order
-    print("Splitting into train/test sets...")
-    train_data, test_data = train_test_split(scaled_data)
+    # Number of selected features + target
+    n_features = train_data.shape[1]
 
     print("Training Data: " + str(train_data))
     print("Testing Data: " + str(test_data))
     
-    # Step 4: Create windowed dataset (targets automatically extracted)
+    # Step 2: Create windowed dataset
     print("\nCreating windowed dataset...")
     window_size = 30
     lookahead_value = 10
     batch_size = 32
 
     best_params = optimize_hyperparameters(
-        train_df=train_data, 
+        train_df=train_data,
+        model_type='hybrid',
+        window_size=window_size,
         lookahead_value=lookahead_value, 
         batch_size=batch_size, 
         n_features=n_features

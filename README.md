@@ -30,10 +30,11 @@ ML-Final-Project/
 - **neural_models.py** — LSTM model implementation
 - **evaluation.py** — Shared metrics, cross-validation, performance comparison
 - **pipeline.py** — Orchestrate workflow: load → engineer → select → train → evaluate
-- **main.py** — CLI entry point that calls pipeline
+- **model_evaluation.ipynb** — Single entry point that calls pipeline and creates visualizations comparing model performance
 - **config.py** — Centralized hyperparameters, file paths, constants
 
 ## Data Collection
+
 
 ## Technical Indicators
 Created using the Stockstats Python library
@@ -74,6 +75,8 @@ Aim to assess the degree of price movements
 - BIAS: Percentage difference between current closing price and moving average
 
 ## Feature Selection with Random Forest
+Aim to select the most relevant feastures for variable prediction
+- Feature Selection Threshold: median to choose only the top 50% features in terms of importance
 
 ## Data Split
 

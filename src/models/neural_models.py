@@ -30,7 +30,7 @@ class GRUModel:
         self.model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
             loss='mse',
-            metrics=['mae',tf.keras.metrics.RootMeanSquaredError(name='rmse'),'mape']
+            metrics=['mae',tf.keras.metrics.RootMeanSquaredError(name='rmse'),'mape',tf.keras.metrics.R2Score(name='r2')]
         )
     def train(self, X_train, val_data=None, epochs=10, callbacks=None):
         """Train the model on windowed time series data.
@@ -90,7 +90,7 @@ class LSTMModel:
         self.model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
             loss='mse',
-            metrics=['mae',tf.keras.metrics.RootMeanSquaredError(name='rmse'),'mape']
+            metrics=['mae',tf.keras.metrics.RootMeanSquaredError(name='rmse'),'mape',tf.keras.metrics.R2Score(name='r2')]
         )
     def train(self, X_train, val_data=None, epochs=10, callbacks=None):
         """Train the model on windowed time series data.
@@ -153,7 +153,7 @@ class HybridGRU_LSTM:
         self.model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
             loss='mse',
-            metrics=['mae',tf.keras.metrics.RootMeanSquaredError(name='rmse'),'mape']
+            metrics=['mae',tf.keras.metrics.RootMeanSquaredError(name='rmse'),'mape',tf.keras.metrics.R2Score(name='r2')]
         )
 
     def train(self, X_train, val_data=None, epochs=10, callbacks=None):

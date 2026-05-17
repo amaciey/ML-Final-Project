@@ -18,6 +18,8 @@ DEFAULT_LAGS = [1, 7, 30]
 DEFAULT_ROLLING_WINDOWS = [7, 30]
 
 
+ # Load and validate a time-indexed CSV so downstream steps always start from
+ # a consistent, date-sorted DataFrame.
 def load_dataset(data_path: str, date_col: str = "Date") -> pd.DataFrame:
     """Load CSV dataset and return date-sorted rows."""
     path = Path(data_path)
@@ -37,6 +39,8 @@ def load_dataset(data_path: str, date_col: str = "Date") -> pd.DataFrame:
     return df
 
 
+ # Auto-discover numeric candidate predictors when a manual feature list is
+ # not provided, excluding target/date to prevent accidental leakage.
 def infer_feature_columns(df: pd.DataFrame, target_col: str, date_col: str = "Date") -> List[str]:
     """Infer numeric feature columns excluding target/date."""
     excluded = {target_col, date_col}
@@ -44,6 +48,8 @@ def infer_feature_columns(df: pd.DataFrame, target_col: str, date_col: str = "Da
     return [col for col in numeric_cols if col not in excluded]
 
 
+ # Convert raw time-series data into supervised-learning inputs/targets by
+ # creating future targets plus lag/rolling features needed by linear models.
 def prepare_model_dataset(
     df: pd.DataFrame,
     target_col: str = DEFAULT_TARGET_COL,
@@ -120,6 +126,8 @@ def prepare_model_dataset(
     return X, y
 
 
+ # Create chronological train/validation/test partitions for time series,
+ # avoiding random shuffle that would break temporal integrity.
 def time_based_split(
     X: pd.DataFrame,
     y: pd.Series,
@@ -158,6 +166,8 @@ def time_based_split(
     return split_data
 
 
+ # Build a shared preprocessing pipeline so every linear model gets identical
+ # imputation/scaling before fitting.
 def _base_pipeline(model) -> Pipeline:
     return Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
@@ -166,22 +176,28 @@ def _base_pipeline(model) -> Pipeline:
     ])
 
 
+ # Plain OLS baseline for interpretable linear fit and benchmark comparison.
 def build_linear_regression() -> Pipeline:
     return _base_pipeline(LinearRegression())
 
 
+ # L2-regularized linear model to stabilize coefficients under collinearity.
 def build_ridge(alpha: float = 1.0) -> Pipeline:
     return _base_pipeline(Ridge(alpha=alpha))
 
 
+ # L1-regularized linear model to encourage sparse feature usage.
 def build_lasso(alpha: float = 0.01, max_iter: int = 10_000) -> Pipeline:
     return _base_pipeline(Lasso(alpha=alpha, max_iter=max_iter))
 
 
+ # Mixed L1/L2 regularization to balance sparsity and coefficient shrinkage.
 def build_elastic_net(alpha: float = 0.01, l1_ratio: float = 0.5, max_iter: int = 10_000) -> Pipeline:
     return _base_pipeline(ElasticNet(alpha=alpha, l1_ratio=l1_ratio, max_iter=max_iter))
 
 
+ # Compute standard regression metrics and directional accuracy so models can
+ # be compared on both error magnitude and sign prediction.
 def evaluate_predictions(
     model_name: str,
     y_true,
@@ -217,6 +233,8 @@ def evaluate_predictions(
     }
 
 
+ # Run prediction on one split and route outputs through the shared metrics
+ # function to keep evaluation logic consistent.
 def evaluate_on_split(
     model,
     model_name: str,
@@ -231,6 +249,8 @@ def evaluate_on_split(
     return evaluate_predictions(model_name=model_name, y_true=y.values, y_pred=pred, current_price=current_price, target_mode=target_mode)
 
 
+ # Normalize input source (path vs in-memory DataFrame) into one canonical
+ # DataFrame format with a Date column for reproducible downstream processing.
 def _resolve_input_dataframe(
     data_path: Optional[Union[str, pd.DataFrame]] = None,
     data: Optional[pd.DataFrame] = None,
@@ -261,6 +281,8 @@ def _resolve_input_dataframe(
     return df, None
 
 
+ # Build a naive reference forecast (persistence for level, zeros otherwise)
+ # to contextualize whether learned models add value.
 def _naive_predictions(
     target_mode: str,
     X_split: pd.DataFrame,
@@ -277,6 +299,8 @@ def _naive_predictions(
     return baseline, current_price
 
 
+ # End-to-end orchestration for data prep, splitting, model fitting, baseline
+ # comparison, and artifact/result packaging for analysis/reporting.
 def run_linear_models_experiment(
     data_path: Optional[Union[str, pd.DataFrame]] = None,
     data: Optional[pd.DataFrame] = None,

@@ -55,7 +55,7 @@ def prepare_model_dataset(
     target_col: str = DEFAULT_TARGET_COL,
     feature_cols: Optional[List[str]] = None,
     date_col: str = "Date",
-    start_date: str = "2023-01-01",
+    start_date: str = "2024-04-26",
     horizon: int = 1,
     lags: Optional[List[int]] = None,
     rolling_windows: Optional[List[int]] = None,
@@ -310,7 +310,7 @@ def run_linear_models_experiment(
     feature_cols: Optional[List[str]] = None,
     horizon: int = 1,
     target_mode: str = "level",
-    start_date: str = "2023-01-01",
+    start_date: str = "2024-04-26",
     train_size: float = 0.70,
     val_size: float = 0.15,
 ) -> Tuple[pd.DataFrame, Dict[str, object]]:

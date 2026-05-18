@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import ElasticNet, Lasso, LinearRegression, Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -205,7 +205,7 @@ def evaluate_predictions(
     current_price=None,
     target_mode: str = "level",
 ) -> Dict[str, Union[float, str]]:
-    """Compute MAE, RMSE, R2, and directional accuracy."""
+    """Compute MAE, MAPE, RMSE, R2, and directional accuracy."""
     if target_mode not in ["level", "change", "return"]:
         raise ValueError("target_mode must be one of: 'level', 'change', 'return'.")
 
@@ -214,6 +214,7 @@ def evaluate_predictions(
 
     mae = mean_absolute_error(y_true, y_pred)
     rmse = mean_squared_error(y_true, y_pred) ** 0.5
+    mape = mean_absolute_percentage_error(y_true, y_pred)
     r2 = r2_score(y_true, y_pred)
 
     if target_mode == "level" and current_price is not None:
@@ -227,6 +228,7 @@ def evaluate_predictions(
     return {
         "model": model_name,
         "MAE": mae,
+        "MAPE": mape,
         "RMSE": rmse,
         "R2": r2,
         "Directional Accuracy": directional_accuracy,

@@ -19,8 +19,9 @@ class GRUModel:
             tf.keras.layers.Input(shape=(self.window_size, self.n_features)),
             tf.keras.layers.GRU(units=self.gru_units, dropout=self.dropout, return_sequences=True),
             tf.keras.layers.GRU(units=self.gru_units, dropout=self.dropout, return_sequences=False),
-            tf.keras.layers.Dense(units=128),
-            tf.keras.layers.Dense(1)  # Linear activation for regression
+            tf.keras.layers.Dense(units=128, activation='relu'),
+            tf.keras.layers.Dropout(0.3),
+            tf.keras.layers.Dense(1, activation='linear')  # Linear activation for regression
         ])
 
         # Model compilation
@@ -79,8 +80,9 @@ class LSTMModel:
             tf.keras.layers.Input(shape=(self.window_size, self.n_features)),
             tf.keras.layers.LSTM(units=self.lstm_units, dropout=self.dropout, return_sequences=True),
             tf.keras.layers.LSTM(units=self.lstm_units, dropout=self.dropout, return_sequences=False),
-            tf.keras.layers.Dense(units=128),
-            tf.keras.layers.Dense(1)  # Linear activation for regression
+            tf.keras.layers.Dense(units=128, activation='relu'),
+            tf.keras.layers.Dropout(0.3),
+            tf.keras.layers.Dense(1, activation='linear')  # Linear activation for regression
         ])
 
         # Model compilation
@@ -142,8 +144,9 @@ class HybridGRU_LSTM:
             tf.keras.layers.GRU(units=self.gru_units, dropout=self.dropout, return_sequences=True),
             tf.keras.layers.LSTM(units=self.lstm_units, dropout=self.dropout,return_sequences=False),
             #tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=128),
-            tf.keras.layers.Dense(1)  # Linear activation for regression
+            tf.keras.layers.Dense(units=128, activation='relu'),
+            tf.keras.layers.Dropout(0.3),
+            tf.keras.layers.Dense(1, activation='linear')  # Linear activation for regression
         ])
 
         # Model compilation
